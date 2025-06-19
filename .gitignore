@@ -1,0 +1,11 @@
+!tinyusb/
+tinyusb/*
+!tinyusb/src/
+tinyusb/src/*
+!tinyusb/src/portable/
+tinyusb/src/portable/*
+!tinyusb/src/portable/dwc_otg/
+tinyusb/src/portable/dwc_otg/*
+!tinyusb/src/portable/dwc_otg/pi3b/
+tinyusb/src/portable/dwc_otg/pi3b/*S
+!tinyusb/src/portable/dwc_otg/pi3b/*
