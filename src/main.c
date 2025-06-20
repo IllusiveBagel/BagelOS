@@ -2,6 +2,7 @@
 #include "heap.h"
 #include "framebuffer.h"
 #include "shell.h"
+#include "console.h"
 
 #define HEAP_START 0x90000
 #define HEAP_SIZE (128 * 1024) // 128 KB
@@ -22,6 +23,7 @@ void main(void)
     uart_init();
 
     fb_init(640, 480, 32);
+    fb_clear(0xFF0000);               // Red screen
     console_init(0xFFFFFF, 0x000000); // White on black
 
     shell_run();

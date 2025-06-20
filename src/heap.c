@@ -1,4 +1,5 @@
 #include "heap.h"
+#include <stdint.h>
 
 static uint8_t *heap_ptr = 0;
 static uint8_t *heap_end = 0;

@@ -122,3 +122,6 @@ void fb_puts(uint32_t x, uint32_t y, const char *s, uint32_t fg, uint32_t bg)
         x += 8;
     }
 }
+
+uint32_t fb_get_width(void) { return fb_width; }
+uint32_t fb_get_height(void) { return fb_height; }
