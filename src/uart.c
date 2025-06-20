@@ -1,7 +1,6 @@
 #include "uart.h"
-#include <stdint.h>
 
-#define UART0_BASE 0x3F201000
+#define UART0_BASE 0x3F201000UL
 
 #define UART0_DR (*(volatile uint32_t *)(UART0_BASE + 0x00))
 #define UART0_FR (*(volatile uint32_t *)(UART0_BASE + 0x18))
@@ -16,16 +15,23 @@ void uart_init(void)
 {
     // Disable UART0.
     UART0_CR = 0x00000000;
+
     // Clear pending interrupts.
     UART0_ICR = 0x7FF;
+
     // Set integer & fractional part of baud rate.
-    UART0_IBRD = 1; // 115200 baud
-    UART0_FBRD = 40;
+    // Divider = UART_CLOCK/(16 * Baud)
+    // UART_CLOCK = 48 MHz, Baud = 115200.
+    // Divider = 26.041666...
+    UART0_IBRD = 26;
+    UART0_FBRD = 3;
+
     // Enable FIFO & 8 bit data transmission (1 stop bit, no parity).
-    UART0_LCRH = (1 << 4) | (1 << 5) | (1 << 6);
+    UART0_LCRH = (1 << 4) | (3 << 5);
+
     // Mask all interrupts.
-    UART0_IMSC = (1 << 1) | (1 << 4) | (1 << 5) | (1 << 6) |
-                 (1 << 7) | (1 << 8) | (1 << 9) | (1 << 10);
+    UART0_IMSC = 0;
+
     // Enable UART0, receive & transfer part of UART.
     UART0_CR = (1 << 0) | (1 << 8) | (1 << 9);
 }
@@ -50,37 +56,34 @@ void uart_puts(const char *s)
 
 char uart_getc(void)
 {
-    // Wait for UART to have received something.
+    // Wait until the UART has received something
     while (UART0_FR & (1 << 4))
         ;
     return (char)(UART0_DR & 0xFF);
 }
 
-void uart_readline(char *buf)
+void uart_gets(char *buf, int maxlen)
 {
     int i = 0;
-    char c;
-    while (1)
+    while (i < maxlen - 1)
     {
-        c = uart_getc();
+        char c = uart_getc();
         if (c == '\r' || c == '\n')
         {
             uart_putc('\n');
-            buf[i] = '\0';
-            return;
+            break;
         }
-        else if (c == 0x7F || c == 0x08)
+        if (c == 0x7F || c == 0x08)
         { // Handle backspace
             if (i > 0)
             {
-                uart_puts("\b \b");
                 i--;
+                uart_puts("\b \b");
             }
+            continue;
         }
-        else if (i < 127)
-        {
-            uart_putc(c);
-            buf[i++] = c;
-        }
+        uart_putc(c); // Echo
+        buf[i++] = c;
     }
+    buf[i] = 0;
 }

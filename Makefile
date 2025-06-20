@@ -1,47 +1,30 @@
-# Toolchain
-CROSS_COMPILE = arm-none-eabi-
-CC  = $(CROSS_COMPILE)gcc
-LD  = $(CROSS_COMPILE)ld
+CROSS_COMPILE = aarch64-none-elf-
+CC = $(CROSS_COMPILE)gcc
+LD = $(CROSS_COMPILE)ld
 OBJCOPY = $(CROSS_COMPILE)objcopy
 
-# Directories
-KERNEL_DIR = kernel
-SHELL_DIR  = shell
-TINYUSB_DIR = tinyusb/src
+SRC = src/start.S src/main.c src/uart.c
+OBJ = $(patsubst src/%.c,build/%.o,$(filter %.c,$(SRC))) \
+      $(patsubst src/%.S,build/%.o,$(filter %.S,$(SRC)))
 
-INCLUDES = -I$(KERNEL_DIR) -I$(SHELL_DIR) -I$(TINYUSB_DIR) -I.
+INCLUDE = -Iinclude
 
-# Source files
-KERNEL_SRC = $(KERNEL_DIR)/kernel_main.c $(KERNEL_DIR)/uart.c $(KERNEL_DIR)/usb.c $(KERNEL_DIR)/eth.c
-SHELL_SRC  = $(SHELL_DIR)/shell.c
-TINYUSB_SRC = $(wildcard $(TINYUSB_DIR)/**/*.c) $(wildcard $(TINYUSB_DIR)/*.c)
+all: build kernel8.img
 
-SRC = $(KERNEL_SRC) $(SHELL_SRC) $(TINYUSB_SRC)
+build:
+    mkdir -p build
 
-# Object files
-OBJ = $(SRC:.c=.o)
+kernel8.img: kernel.elf
+    $(OBJCOPY) kernel.elf -O binary kernel8.img
 
-# Output
-ELF = kernel.elf
-BIN = kernel.img
+kernel.elf: $(OBJ) linker.ld
+    $(LD) -T linker.ld $(OBJ) -o kernel.elf
 
-# Flags
-CFLAGS = -Wall -O2 -nostdlib -nostartfiles -ffreestanding $(INCLUDES)
-LDFLAGS = -T linker.ld
+build/%.o: src/%.c
+    $(CC) $(INCLUDE) -c $< -o $@
 
-# Default target
-all: $(BIN)
-
-$(BIN): $(ELF)
-    $(OBJCOPY) $(ELF) -O binary $@
-
-$(ELF): $(OBJ)
-    $(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
-
-%.o: %.c
-    $(CC) $(CFLAGS) -c $< -o $@
+build/%.o: src/%.S
+    $(CC) $(INCLUDE) -c $< -o $@
 
 clean:
-    rm -f $(KERNEL_DIR)/*.o $(SHELL_DIR)/*.o $(TINYUSB_DIR)/**/*.o $(TINYUSB_DIR)/*.o $(ELF) $(BIN)
-
-.PHONY: all clean
+    rm -rf build *.elf *.img

@@ -2,24 +2,10 @@ ENTRY(_start)
 
 SECTIONS
 {
-    . = 0x80000;  /* Load address for kernel on Pi (512KB into memory) */
+    . = 0x80000;
 
-    .text : {
-        *(.text)
-    }
-
-    .rodata : {
-        *(.rodata*)
-    }
-
-    .data : {
-        *(.data)
-    }
-
-    .bss : {
-        __bss_start = .;
-        *(.bss*)
-        *(COMMON)
-        __bss_end = .;
-    }
+    .text : { *(.text*) }
+    .rodata : { *(.rodata*) }
+    .data : { *(.data*) }
+    .bss : { *(.bss*) *(COMMON) }
 }
