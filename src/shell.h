@@ -1,2 +1,6 @@
-#pragma once
-void shell_run(void);
+#ifndef SHELL_H
+#define SHELL_H
+
+void shell(void);
+
+#endif

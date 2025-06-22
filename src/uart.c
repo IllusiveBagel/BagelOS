@@ -1,89 +1,96 @@
-#include "uart.h"
+#include "gpio.h"
 
-#define UART0_BASE 0x3F201000UL
+/* Auxilary mini UART registers */
+#define AUX_ENABLE ((volatile unsigned int *)(MMIO_BASE + 0x00215004))
+#define AUX_MU_IO ((volatile unsigned int *)(MMIO_BASE + 0x00215040))
+#define AUX_MU_IER ((volatile unsigned int *)(MMIO_BASE + 0x00215044))
+#define AUX_MU_IIR ((volatile unsigned int *)(MMIO_BASE + 0x00215048))
+#define AUX_MU_LCR ((volatile unsigned int *)(MMIO_BASE + 0x0021504C))
+#define AUX_MU_MCR ((volatile unsigned int *)(MMIO_BASE + 0x00215050))
+#define AUX_MU_LSR ((volatile unsigned int *)(MMIO_BASE + 0x00215054))
+#define AUX_MU_MSR ((volatile unsigned int *)(MMIO_BASE + 0x00215058))
+#define AUX_MU_SCRATCH ((volatile unsigned int *)(MMIO_BASE + 0x0021505C))
+#define AUX_MU_CNTL ((volatile unsigned int *)(MMIO_BASE + 0x00215060))
+#define AUX_MU_STAT ((volatile unsigned int *)(MMIO_BASE + 0x00215064))
+#define AUX_MU_BAUD ((volatile unsigned int *)(MMIO_BASE + 0x00215068))
 
-#define UART0_DR (*(volatile uint32_t *)(UART0_BASE + 0x00))
-#define UART0_FR (*(volatile uint32_t *)(UART0_BASE + 0x18))
-#define UART0_IBRD (*(volatile uint32_t *)(UART0_BASE + 0x24))
-#define UART0_FBRD (*(volatile uint32_t *)(UART0_BASE + 0x28))
-#define UART0_LCRH (*(volatile uint32_t *)(UART0_BASE + 0x2C))
-#define UART0_CR (*(volatile uint32_t *)(UART0_BASE + 0x30))
-#define UART0_IMSC (*(volatile uint32_t *)(UART0_BASE + 0x38))
-#define UART0_ICR (*(volatile uint32_t *)(UART0_BASE + 0x44))
-
-void uart_init(void)
+/**
+ * Set baud rate and characteristics (115200 8N1) and map to GPIO
+ */
+void uart_init()
 {
-    // Disable UART0.
-    UART0_CR = 0x00000000;
+    register unsigned int r;
 
-    // Clear pending interrupts.
-    UART0_ICR = 0x7FF;
-
-    // Set integer & fractional part of baud rate.
-    // Divider = UART_CLOCK/(16 * Baud)
-    // UART_CLOCK = 48 MHz, Baud = 115200.
-    // Divider = 26.041666...
-    UART0_IBRD = 26;
-    UART0_FBRD = 3;
-
-    // Enable FIFO & 8 bit data transmission (1 stop bit, no parity).
-    UART0_LCRH = (1 << 4) | (3 << 5);
-
-    // Mask all interrupts.
-    UART0_IMSC = 0;
-
-    // Enable UART0, receive & transfer part of UART.
-    UART0_CR = (1 << 0) | (1 << 8) | (1 << 9);
+    /* initialize UART */
+    *AUX_ENABLE |= 1; // enable UART1, AUX mini uart
+    *AUX_MU_CNTL = 0;
+    *AUX_MU_LCR = 3; // 8 bits
+    *AUX_MU_MCR = 0;
+    *AUX_MU_IER = 0;
+    *AUX_MU_IIR = 0xc6; // disable interrupts
+    *AUX_MU_BAUD = 434; // 115200 baud
+    /* map UART1 to GPIO pins */
+    r = *GPFSEL1;
+    r &= ~((7 << 12) | (7 << 15)); // gpio14, gpio15
+    r |= (2 << 12) | (2 << 15);    // alt5
+    *GPFSEL1 = r;
+    *GPPUD = 0; // enable pins 14 and 15
+    r = 150;
+    while (r--)
+    {
+        asm volatile("nop");
+    }
+    *GPPUDCLK0 = (1 << 14) | (1 << 15);
+    r = 150;
+    while (r--)
+    {
+        asm volatile("nop");
+    }
+    *GPPUDCLK0 = 0;   // flush GPIO setup
+    *AUX_MU_CNTL = 3; // enable Tx, Rx
 }
 
-void uart_putc(char c)
+/**
+ * Send a character
+ */
+void uart_send(unsigned int c)
 {
-    // Wait for UART to become ready to transmit.
-    while (UART0_FR & (1 << 5))
-        ;
-    UART0_DR = c;
+    /* wait until we can send */
+    do
+    {
+        asm volatile("nop");
+    } while (!(*AUX_MU_LSR & 0x20));
+    /* write the character to the buffer */
+    *AUX_MU_IO = c;
 }
 
-void uart_puts(const char *s)
+/**
+ * Receive a character
+ */
+char uart_getc()
+{
+    char r;
+    /* wait until something is in the buffer */
+    do
+    {
+        asm volatile("nop");
+    } while (!(*AUX_MU_LSR & 0x01));
+    /* read it and return */
+    r = (char)(*AUX_MU_IO);
+    /* convert carriage return to newline */
+    return r == '\r' ? '\n' : r;
+}
+
+/**
+ * Display a string
+ */
+void uart_puts(char *s)
 {
     while (*s)
     {
+        /* convert newline to carriage return + newline */
         if (*s == '\n')
-            uart_putc('\r');
-        uart_putc(*s++);
+            uart_send('\r');
+        uart_send(*s++);
     }
-}
-
-char uart_getc(void)
-{
-    // Wait until the UART has received something
-    while (UART0_FR & (1 << 4))
-        ;
-    return (char)(UART0_DR & 0xFF);
-}
-
-void uart_gets(char *buf, int maxlen)
-{
-    int i = 0;
-    while (i < maxlen - 1)
-    {
-        char c = uart_getc();
-        if (c == '\r' || c == '\n')
-        {
-            uart_putc('\n');
-            break;
-        }
-        if (c == 0x7F || c == 0x08)
-        { // Handle backspace
-            if (i > 0)
-            {
-                i--;
-                uart_puts("\b \b");
-            }
-            continue;
-        }
-        uart_putc(c); // Echo
-        buf[i++] = c;
-    }
-    buf[i] = 0;
 }
