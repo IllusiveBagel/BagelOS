@@ -1,23 +1,25 @@
 AARCH64_TOOLCHAIN=aarch64-linux-gnu
 CC=$(AARCH64_TOOLCHAIN)-gcc
 LD=$(AARCH64_TOOLCHAIN)-ld
-CFLAGS=-Wall -O2 -nostdlib -nostartfiles -ffreestanding -I./src
+CFLAGS=-Wall -O2 -nostdlib -nostartfiles -ffreestanding -I./src -I./src/drivers -I ./src/kernel -I ./src/startup
 LDFLAGS=-T linker.ld
 
-SRC := $(wildcard src/*.c src/*.S)
+SRC := $(shell find src -name '*.c' -o -name '*.S')
 OBJ := $(patsubst src/%,build/%, $(SRC:.c=.o))
 OBJ := $(patsubst src/%,build/%, $(OBJ:.S=.o))
 FONTS := build/font_psf.o build/font_sfn.o
 
 all: kernel8.img
 
-build/%.o: src/%.c | build
+build/%.o: src/%.c
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-build/%.o: src/%.S | build
+build/%.o: src/%.S
+	mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-build:
+build_dirs:
 	mkdir -p build
 
 build/font_psf.o: include/font.psf | build
@@ -31,4 +33,5 @@ kernel8.img: $(OBJ) $(FONTS)
 	$(AARCH64_TOOLCHAIN)-objcopy kernel.elf -O binary kernel8.img
 
 clean:
-	rm -f kernel8.img kernel.elf src/*.o
+	rm -f kernel8.img kernel.elf
+	rm -rf build
