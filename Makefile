@@ -7,6 +7,7 @@ LDFLAGS=-T linker.ld
 SRC := $(wildcard src/*.c src/*.S)
 OBJ := $(patsubst src/%,build/%, $(SRC:.c=.o))
 OBJ := $(patsubst src/%,build/%, $(OBJ:.S=.o))
+FONTS := build/font_psf.o build/font_sfn.o
 
 all: kernel8.img
 
@@ -19,8 +20,14 @@ build/%.o: src/%.S | build
 build:
 	mkdir -p build
 
-kernel8.img: $(OBJ)
-	$(LD) $(LDFLAGS) -o kernel.elf $(OBJ)
+build/font_psf.o: include/font.psf | build
+	$(LD) -r -b binary -o build/font_psf.o include/font.psf
+
+build/font_sfn.o: include/font.sfn | build
+	$(LD) -r -b binary -o build/font_sfn.o include/font.sfn
+
+kernel8.img: $(OBJ) $(FONTS)
+	$(LD) $(LDFLAGS) -o kernel.elf $(OBJ) $(FONTS)
 	$(AARCH64_TOOLCHAIN)-objcopy kernel.elf -O binary kernel8.img
 
 clean:

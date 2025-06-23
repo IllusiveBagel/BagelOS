@@ -1,10 +1,43 @@
 #include "uart.h"
 #include "mbox.h"
-#include "homer.h"
 #include "delays.h"
 
-unsigned int width, height, pitch, isrgb; /* dimensions and channel order */
-unsigned char *lfb;                       /* raw frame buffer address */
+/* PC Screen Font as used by Linux Console */
+typedef struct
+{
+    unsigned int magic;
+    unsigned int version;
+    unsigned int headersize;
+    unsigned int flags;
+    unsigned int numglyph;
+    unsigned int bytesperglyph;
+    unsigned int height;
+    unsigned int width;
+    unsigned char glyphs;
+} __attribute__((packed)) psf_t;
+extern volatile unsigned char _binary_include_font_psf_start[];
+
+/* Scalable Screen Font (https://gitlab.com/bztsrc/scalable-font2) */
+typedef struct
+{
+    unsigned char magic[4];
+    unsigned int size;
+    unsigned char type;
+    unsigned char features;
+    unsigned char width;
+    unsigned char height;
+    unsigned char baseline;
+    unsigned char underline;
+    unsigned short fragments_offs;
+    unsigned int characters_offs;
+    unsigned int ligature_offs;
+    unsigned int kerning_offs;
+    unsigned int cmap_offs;
+} __attribute__((packed)) sfn_t;
+extern volatile unsigned char _binary_include_font_sfn_start[];
+
+unsigned int width, height, pitch;
+unsigned char *lfb;
 
 /**
  * Set screen resolution to 1024x768
@@ -58,15 +91,12 @@ void lfb_init()
 
     mbox[34] = MBOX_TAG_LAST;
 
-    // this might not return exactly what we asked for, could be
-    // the closest supported resolution instead
     if (mbox_call(MBOX_CH_PROP) && mbox[20] == 32 && mbox[28] != 0)
     {
-        mbox[28] &= 0x3FFFFFFF; // convert GPU address to ARM address
-        width = mbox[5];        // get actual physical width
-        height = mbox[6];       // get actual physical height
-        pitch = mbox[33];       // get number of bytes per line
-        isrgb = mbox[24];       // get the actual channel order
+        mbox[28] &= 0x3FFFFFFF;
+        width = mbox[5];
+        height = mbox[6];
+        pitch = mbox[33];
         lfb = (void *)((unsigned long)mbox[28]);
     }
     else
@@ -76,25 +106,173 @@ void lfb_init()
 }
 
 /**
- * Show a picture
+ * Display a string using fixed size PSF
  */
-void lfb_showpicture()
+void lfb_print(int x, int y, char *s)
 {
-    int x, y;
-    unsigned char *ptr = lfb;
-    char *data = homer_data, pixel[4];
-
-    ptr += (height - homer_height) / 2 * pitch + (width - homer_width) * 2;
-    for (y = 0; y < homer_height; y++)
+    // get our font
+    psf_t *font = (psf_t *)&_binary_include_font_psf_start;
+    // draw next character if it's not zero
+    while (*s)
     {
-        for (x = 0; x < homer_width; x++)
+        // get the offset of the glyph. Need to adjust this to support unicode table
+        unsigned char *glyph = (unsigned char *)&_binary_include_font_psf_start +
+                               font->headersize + (*((unsigned char *)s) < font->numglyph ? *s : 0) * font->bytesperglyph;
+        // calculate the offset on screen
+        int offs = (y * pitch) + (x * 4);
+        // variables
+        int i, j, line, mask, bytesperline = (font->width + 7) / 8;
+        // handle carrige return
+        if (*s == '\r')
         {
-            HEADER_PIXEL(data, pixel);
-            // the image is in RGB. So if we have an RGB framebuffer, we can copy the pixels
-            // directly, but for BGR we must swap R (pixel[0]) and B (pixel[2]) channels.
-            *((unsigned int *)ptr) = isrgb ? *((unsigned int *)&pixel) : (unsigned int)(pixel[0] << 16 | pixel[1] << 8 | pixel[2]);
-            ptr += 4;
+            x = 0;
         }
-        ptr += pitch - homer_width * 4;
+        else
+            // new line
+            if (*s == '\n')
+            {
+                x = 0;
+                y += font->height;
+            }
+            else
+            {
+                // display a character
+                for (j = 0; j < font->height; j++)
+                {
+                    // display one row
+                    line = offs;
+                    mask = 1 << (font->width - 1);
+                    for (i = 0; i < font->width; i++)
+                    {
+                        // if bit set, we use white color, otherwise black
+                        *((unsigned int *)(lfb + line)) = ((int)*glyph) & mask ? 0xFFFFFF : 0;
+                        mask >>= 1;
+                        line += 4;
+                    }
+                    // adjust to next line
+                    glyph += bytesperline;
+                    offs += pitch;
+                }
+                x += (font->width + 1);
+            }
+        // next character
+        s++;
+    }
+}
+
+/**
+ * Display a string using proportional SSFN
+ */
+void lfb_proprint(int x, int y, char *s)
+{
+    // get our font
+    sfn_t *font = (sfn_t *)&_binary_include_font_sfn_start;
+    unsigned char *ptr, *chr, *frg;
+    unsigned int c;
+    unsigned long o, p;
+    int i, j, k, l, m, n;
+
+    while (*s)
+    {
+        // UTF-8 to UNICODE code point
+        if ((*s & 128) != 0)
+        {
+            if (!(*s & 32))
+            {
+                c = ((*s & 0x1F) << 6) | (*(s + 1) & 0x3F);
+                s += 1;
+            }
+            else if (!(*s & 16))
+            {
+                c = ((*s & 0xF) << 12) | ((*(s + 1) & 0x3F) << 6) | (*(s + 2) & 0x3F);
+                s += 2;
+            }
+            else if (!(*s & 8))
+            {
+                c = ((*s & 0x7) << 18) | ((*(s + 1) & 0x3F) << 12) | ((*(s + 2) & 0x3F) << 6) | (*(s + 3) & 0x3F);
+                s += 3;
+            }
+            else
+                c = 0;
+        }
+        else
+            c = *s;
+        s++;
+        // handle carrige return
+        if (c == '\r')
+        {
+            x = 0;
+            continue;
+        }
+        else
+            // new line
+            if (c == '\n')
+            {
+                x = 0;
+                y += font->height;
+                continue;
+            }
+        // find glyph, look up "c" in Character Table
+        for (ptr = (unsigned char *)font + font->characters_offs, chr = 0, i = 0; i < 0x110000; i++)
+        {
+            if (ptr[0] == 0xFF)
+            {
+                i += 65535;
+                ptr++;
+            }
+            else if ((ptr[0] & 0xC0) == 0xC0)
+            {
+                j = (((ptr[0] & 0x3F) << 8) | ptr[1]);
+                i += j;
+                ptr += 2;
+            }
+            else if ((ptr[0] & 0xC0) == 0x80)
+            {
+                j = (ptr[0] & 0x3F);
+                i += j;
+                ptr++;
+            }
+            else
+            {
+                if ((unsigned int)i == c)
+                {
+                    chr = ptr;
+                    break;
+                }
+                ptr += 6 + ptr[1] * (ptr[0] & 0x40 ? 6 : 5);
+            }
+        }
+        if (!chr)
+            continue;
+        // uncompress and display fragments
+        ptr = chr + 6;
+        o = (unsigned long)lfb + y * pitch + x * 4;
+        for (i = n = 0; i < chr[1]; i++, ptr += chr[0] & 0x40 ? 6 : 5)
+        {
+            if (ptr[0] == 255 && ptr[1] == 255)
+                continue;
+            frg = (unsigned char *)font + (chr[0] & 0x40 ? ((ptr[5] << 24) | (ptr[4] << 16) | (ptr[3] << 8) | ptr[2]) : ((ptr[4] << 16) | (ptr[3] << 8) | ptr[2]));
+            if ((frg[0] & 0xE0) != 0x80)
+                continue;
+            o += (int)(ptr[1] - n) * pitch;
+            n = ptr[1];
+            k = ((frg[0] & 0x1F) + 1) << 3;
+            j = frg[1] + 1;
+            frg += 2;
+            for (m = 1; j; j--, n++, o += pitch)
+                for (p = o, l = 0; l < k; l++, p += 4, m <<= 1)
+                {
+                    if (m > 0x80)
+                    {
+                        frg++;
+                        m = 1;
+                    }
+                    if (*frg & m)
+                        *((unsigned int *)p) = 0xFFFFFF;
+                }
+        }
+        // add advances
+        x += chr[4] + 1;
+        y += chr[5];
     }
 }
