@@ -1,33 +1,22 @@
 #include "uart.h"
-#include "delays.h"
+#include "power.h"
 
 void main()
 {
+    char c;
+
     // set up serial console
     uart_init();
 
-    uart_puts("Waiting 1000000 CPU cycles (ARM CPU): ");
-    wait_cycles(1000000);
-    uart_puts("OK\n");
-
-    uart_puts("Waiting 1000000 microsec (ARM CPU): ");
-    wait_msec(1000000);
-    uart_puts("OK\n");
-
-    uart_puts("Waiting 1000000 microsec (BCM System Timer): ");
-    if (get_system_timer() == 0)
-    {
-        uart_puts("Not available\n");
-    }
-    else
-    {
-        wait_msec_st(1000000);
-        uart_puts("OK\n");
-    }
-
-    // echo everything back
     while (1)
     {
-        uart_send(uart_getc());
+        uart_puts(" 1 - power off\n 2 - reset\nChoose one: ");
+        c = uart_getc();
+        uart_send(c);
+        uart_puts("\n\n");
+        if (c == '1')
+            power_off();
+        if (c == '2')
+            reset();
     }
 }
