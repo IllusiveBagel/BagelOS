@@ -2,9 +2,6 @@
 #include "uart.h"
 #include <stdint.h>
 
-// get the end of bss segment from linker
-extern unsigned char _end;
-
 static unsigned int partitionlba = 0;
 
 // the BIOS Parameter Block (in Volume Boot Record)
@@ -80,7 +77,10 @@ int fat_getpartition(void)
         uart_puts("\nFAT partition starts at: ");
         // should be this, but compiler generates bad code...
         // partitionlba=*((unsigned int*)((unsigned long)&_end+0x1C6));
-        partitionlba = mbr[0x1C6] + (mbr[0x1C7] << 8) + (mbr[0x1C8] << 16) + (mbr[0x1C9] << 24);
+        partitionlba = ((uint32_t)mbr[0x1C6]) |
+                       ((uint32_t)mbr[0x1C7] << 8) |
+                       ((uint32_t)mbr[0x1C8] << 16) |
+                       ((uint32_t)mbr[0x1C9] << 24);
         uart_hex(partitionlba);
         uart_puts("\n");
         // read the boot record
