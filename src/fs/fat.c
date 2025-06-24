@@ -1,5 +1,6 @@
 #include "sd.h"
 #include "uart.h"
+#include "<stdint.h>"
 
 // get the end of bss segment from linker
 extern unsigned char _end;
@@ -46,6 +47,8 @@ typedef struct
     unsigned int size;
 } __attribute__((packed)) fatdir_t;
 
+static unsigned char fat_buf[1024]; // 1024 for safety, 512 is minimum
+
 /**
  * Get the starting LBA address of the first partition
  * so that we know where our FAT file system starts, and
@@ -53,10 +56,11 @@ typedef struct
  */
 int fat_getpartition(void)
 {
-    unsigned char *mbr = &_end;
-    bpb_t *bpb = (bpb_t *)&_end;
+
+    unsigned char *mbr = fat_buf;
+    bpb_t *bpb = (bpb_t *)fat_buf;
     // read the partitioning table
-    if (sd_readblock(0, &_end, 1))
+    if (sd_readblock(0, fat_buf, 1))
     {
         // check magic
         if (mbr[510] != 0x55 || mbr[511] != 0xAA)
@@ -71,7 +75,8 @@ int fat_getpartition(void)
             return 0;
         }
         uart_puts("MBR disk identifier: ");
-        uart_hex(*((unsigned int *)((unsigned long)&_end + 0x1B8)));
+        uart_hex(((uint32_t)mbr[0x1B8]) | ((uint32_t)mbr[0x1B9] << 8) |
+                 ((uint32_t)mbr[0x1BA] << 16) | ((uint32_t)mbr[0x1BB] << 24));
         uart_puts("\nFAT partition starts at: ");
         // should be this, but compiler generates bad code...
         // partitionlba=*((unsigned int*)((unsigned long)&_end+0x1C6));
@@ -79,7 +84,7 @@ int fat_getpartition(void)
         uart_hex(partitionlba);
         uart_puts("\n");
         // read the boot record
-        if (!sd_readblock(partitionlba, &_end, 1))
+        if (!sd_readblock(partitionlba, fat_buf, 1))
         {
             uart_puts("ERROR: Unable to read boot record\n");
             return 0;
@@ -105,8 +110,8 @@ int fat_getpartition(void)
  */
 void fat_listdirectory(void)
 {
-    bpb_t *bpb = (bpb_t *)&_end;
-    fatdir_t *dir = (fatdir_t *)&_end;
+    bpb_t *bpb = (bpb_t *)fat_buf;
+    fatdir_t *dir = (fatdir_t *)fat_buf;
     unsigned int root_sec, s;
     // find the root directory's LBA
     root_sec = ((bpb->spf16 ? bpb->spf16 : bpb->spf32) * bpb->nf) + bpb->rsc;
@@ -125,7 +130,7 @@ void fat_listdirectory(void)
     uart_hex(root_sec);
     uart_puts("\n");
     // load the root directory
-    if (sd_readblock(root_sec, (unsigned char *)&_end, s / 512 + 1))
+    if (sd_readblock(root_sec, fat_buf, s / 512 + 1))
     {
         uart_puts("\nAttrib Cluster  Size     Name\n");
         // iterate on each entry and print out
