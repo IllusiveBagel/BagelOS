@@ -50,7 +50,7 @@ typedef struct
 } __attribute__((packed)) fatdir_t;
 
 // Static Buffer for reading MBR and boot record
-static unsigned char fat_buf[512]; // 1KB for safety, or at least 512 bytes
+static volatile unsigned char fat_buf[4096]; // 1KB for safety, or at least 512 bytes
 
 /**
  * Get the starting LBA address of the first partition
