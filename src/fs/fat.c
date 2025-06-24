@@ -80,7 +80,11 @@ int fat_getpartition(void)
             return 0;
         }
         uart_puts("MBR disk identifier: ");
-        uart_hex(*((unsigned int *)((unsigned long)fat_buf + 0x1B8)));
+        unsigned int disk_id = ((uint32_t)fat_buf[0x1B8]) |
+                               ((uint32_t)fat_buf[0x1B9] << 8) |
+                               ((uint32_t)fat_buf[0x1BA] << 16) |
+                               ((uint32_t)fat_buf[0x1BB] << 24);
+        uart_hex(disk_id);
         uart_puts("\nFAT partition starts at: ");
         uart_puts("\nParsing partition LBA...\n");
         uart_puts("Partition LBA bytes: ");
