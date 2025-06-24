@@ -1,6 +1,6 @@
 #include "sd.h"
 #include "uart.h"
-#include "<stdint.h>"
+#include <stdint.h>
 
 // get the end of bss segment from linker
 extern unsigned char _end;
