@@ -467,6 +467,7 @@ int sd_init()
     if (sd_status(SR_DAT_INHIBIT))
         return SD_TIMEOUT;
     *EMMC_BLKSIZECNT = (1 << 16) | 8;
+    *EMMC_CONTROL0 &= ~C0_HCTL_DWITDH;
     sd_cmd(CMD_SEND_SCR, 0);
     if (sd_err)
         return sd_err;
