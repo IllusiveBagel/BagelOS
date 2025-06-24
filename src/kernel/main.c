@@ -6,6 +6,7 @@ void main()
 {
     // set up serial console
     uart_init();
+    uart_puts("Starting SD card reader...\n");
 
     // initialize EMMC and detect SD card type
     if (sd_init() == SD_OK)
