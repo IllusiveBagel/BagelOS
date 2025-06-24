@@ -82,9 +82,9 @@ int fat_getpartition(void)
         uart_hex(*((unsigned int *)((unsigned long)fat_buf + 0x1B8)));
         uart_puts("\nFAT partition starts at: ");
         // should be this, but compiler generates bad code...
-        uart_puts("Parsing partition LBA...\n");
-        partitionlba = *((unsigned int *)((unsigned long)fat_buf + 0x1C6));
-        // partitionlba = mbr[0x1C6] + (mbr[0x1C7] << 8) + (mbr[0x1C8] << 16) + (mbr[0x1C9] << 24);
+        uart_puts("\nParsing partition LBA...\n");
+        // partitionlba = *((unsigned int *)((unsigned long)fat_buf + 0x1C6));
+        partitionlba = mbr[0x1C6] + (mbr[0x1C7] << 8) + (mbr[0x1C8] << 16) + (mbr[0x1C9] << 24);
         uart_puts("Partition LBA: ");
         uart_hex(partitionlba);
         uart_puts("\n");
