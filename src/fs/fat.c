@@ -1,7 +1,6 @@
 
 #include "sd.h"
 #include "uart.h"
-#include <stdint.h>
 
 // get the end of bss segment from linker
 extern unsigned char _end;
@@ -47,16 +46,6 @@ typedef struct
     unsigned short cl;
     unsigned int size;
 } __attribute__((packed)) fatdir_t;
-
-typedef struct
-{
-    uint8_t status;
-    uint8_t chs_first[3];
-    uint8_t type;
-    uint8_t chs_last[3];
-    uint32_t lba_first;
-    uint32_t sectors;
-} __attribute__((packed)) mbr_partition_t;
 
 // Static Buffer for reading MBR and boot record
 static unsigned char fat_buf[1024]; // 1KB for safety, or at least 512 bytes
@@ -104,8 +93,10 @@ int fat_getpartition(void)
         uart_puts("\n");
         // should be this, but compiler generates bad code...
         // partitionlba = *((unsigned int *)((unsigned long)fat_buf + 0x1C6));
-        mbr_partition_t *part = (mbr_partition_t *)(mbr + 0x1BE);
-        partitionlba = part->lba_first;
+        partitionlba = ((uint32_t)mbr[0x1C6]) |
+                       ((uint32_t)mbr[0x1C7] << 8) |
+                       ((uint32_t)mbr[0x1C8] << 16) |
+                       ((uint32_t)mbr[0x1C9] << 24);
         uart_puts("Partition LBA: ");
         uart_hex(partitionlba);
         uart_puts("\n");
