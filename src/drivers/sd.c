@@ -406,7 +406,7 @@ int sd_init()
     *EMMC_CONTROL1 |= C1_CLK_INTLEN | C1_TOUNIT_MAX;
     wait_msec(10);
     // Set clock to setup frequency.
-    if ((r = sd_clk(400000)))
+    if ((r = sd_clk(100000)))
         return r;
     *EMMC_INT_EN = 0xffffffff;
     *EMMC_INT_MASK = 0xffffffff;

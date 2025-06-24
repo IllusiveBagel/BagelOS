@@ -8,8 +8,6 @@ void main()
 
     if (sd_init() == SD_OK)
     {
-        sd_set_clock(1000000); // 1MHz
-        uart_puts("SD clock set to 1MHz\n");
         uart_puts("SD init OK\n");
         if (sd_readblock(0, mbr, 1))
         {
