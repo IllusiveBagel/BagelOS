@@ -4,7 +4,7 @@
 void main()
 {
     uart_init();
-    static unsigned char mbr[512];
+    static unsigned char mbr[512] __attribute__((aligned(4)));
 
     if (sd_init() == SD_OK)
     {
