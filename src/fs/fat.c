@@ -106,27 +106,8 @@ int fat_getpartition(void)
                        ((uint32_t)mbr[0x1C7] << 8) |
                        ((uint32_t)mbr[0x1C8] << 16) |
                        ((uint32_t)mbr[0x1C9] << 24);
-
-        uart_puts("Partition LBA (dec): ");
-        unsigned int val = partitionlba;
-        char buf[12];
-        int i = 10;
-        buf[11] = 0;
-        if (val == 0)
-            uart_puts("0");
-        else
-        {
-            while (val && i)
-            {
-                buf[i--] = '0' + (val % 10);
-                val /= 10;
-            }
-            uart_puts(&buf[i + 1]);
-        }
-        uart_puts("\n");
-        uart_puts("Partition LBA: ");
+        uart_puts("Partition LBA: \n");
         uart_hex(partitionlba);
-        wait_msec(1000);
         uart_puts("\n");
         // read the boot record
         uart_puts("\nReading boot record...\n");
