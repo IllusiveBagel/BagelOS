@@ -1,34 +1,28 @@
 #include "uart.h"
 #include "sd.h"
+#include "fat.h"
 
 void main()
 {
+    // set up serial console
     uart_init();
-    static unsigned char mbr[512] __attribute__((aligned(4)));
 
+    // initialize EMMC and detect SD card type
     if (sd_init() == SD_OK)
     {
-        uart_puts("SD init OK\n");
-        if (sd_readblock(0, mbr, 1))
+        // read the master boot record and find our partition
+        if (fat_getpartition())
         {
-            uart_puts("Read block OK\n");
-            for (int i = 0; i < 16; i++)
-            {
-                uart_hex(mbr[i]);
-                uart_puts(" ");
-            }
-            uart_puts("\n");
+            // list root directory entries
+            fat_listdirectory();
         }
         else
         {
-            uart_puts("Read block failed\n");
+            uart_puts("FAT partition not found???\n");
         }
     }
-    else
-    {
-        uart_puts("SD init failed\n");
-    }
 
+    // echo everything back
     while (1)
     {
         uart_send(uart_getc());
