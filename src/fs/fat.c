@@ -1,6 +1,7 @@
 
 #include "sd.h"
 #include "uart.h"
+#include "delays.h"
 #include <stdint.h>
 
 // get the end of bss segment from linker
@@ -104,6 +105,7 @@ int fat_getpartition(void)
                        ((uint32_t)mbr[0x1C9] << 24);
         uart_puts("Partition LBA: ");
         uart_hex(partitionlba);
+        wait_msec(1000);
         uart_puts("\n");
         // read the boot record
         uart_puts("\nReading boot record...\n");
