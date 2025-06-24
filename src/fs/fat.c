@@ -50,7 +50,7 @@ typedef struct
 } __attribute__((packed)) fatdir_t;
 
 // Static Buffer for reading MBR and boot record
-static unsigned char fat_buf[1024]; // 1KB for safety, or at least 512 bytes
+static unsigned char fat_buf[512]; // 1KB for safety, or at least 512 bytes
 
 /**
  * Get the starting LBA address of the first partition
@@ -102,12 +102,12 @@ int fat_getpartition(void)
         uart_puts("\n");
         // should be this, but compiler generates bad code...
         // partitionlba = *((unsigned int *)((unsigned long)fat_buf + 0x1C6));
-        /* partitionlba = ((uint32_t)mbr[0x1C6]) |
+        partitionlba = ((uint32_t)mbr[0x1C6]) |
                        ((uint32_t)mbr[0x1C7] << 8) |
                        ((uint32_t)mbr[0x1C8] << 16) |
-                       ((uint32_t)mbr[0x1C9] << 24); */
+                       ((uint32_t)mbr[0x1C9] << 24);
         uart_puts("Partition LBA: \n");
-        uart_hex(0x800);
+        uart_hex(partitionlba);
         uart_puts("\n");
         // read the boot record
         uart_puts("\nReading boot record...\n");
