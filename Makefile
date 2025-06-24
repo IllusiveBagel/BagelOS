@@ -1,7 +1,7 @@
 AARCH64_TOOLCHAIN=aarch64-linux-gnu
 CC=$(AARCH64_TOOLCHAIN)-gcc
 LD=$(AARCH64_TOOLCHAIN)-ld
-CFLAGS=-Wall -O2 -nostdlib -nostartfiles -ffreestanding -I./src -I./src/drivers -I ./src/kernel -I ./src/startup -I ./src/fs
+CFLAGS=-Wall -O0 -g -nostdlib -nostartfiles -ffreestanding -fno-common -mcpu=cortex-a53 -march=armv8-a -I./src -I./src/drivers -I ./src/kernel -I ./src/startup -I ./src/fs
 LDFLAGS=-T linker.ld
 
 SRC := $(shell find src -name '*.c' -o -name '*.S')
