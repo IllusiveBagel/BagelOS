@@ -93,7 +93,7 @@ int fat_getpartition(void)
         uart_puts("\n");
         // should be this, but compiler generates bad code...
         // partitionlba = *((unsigned int *)((unsigned long)fat_buf + 0x1C6));
-        partitionlba = mbr[0x1C6] + (mbr[0x1C7] << 8) + (mbr[0x1C8] << 16) + (mbr[0x1C9] << 24);
+        partitionlba = (unsigned int)mbr[0x1C6] | ((unsigned int)mbr[0x1C7] << 8) | ((unsigned int)mbr[0x1C8] << 16) | ((unsigned int)mbr[0x1C9] << 24);
         uart_puts("Partition LBA: ");
         uart_hex(partitionlba);
         uart_puts("\n");
