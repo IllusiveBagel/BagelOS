@@ -59,16 +59,20 @@ int fat_getpartition(void)
 {
     unsigned char *mbr = fat_buf;
     bpb_t *bpb = (bpb_t *)fat_buf;
+    uart_puts("Reading MBR...\n");
     // read the partitioning table
     if (sd_readblock(0, fat_buf, 1))
     {
+        uart_puts("MBR read OK\n");
         // check magic
+        uart_puts("Checking magic...\n");
         if (mbr[510] != 0x55 || mbr[511] != 0xAA)
         {
             uart_puts("ERROR: Bad magic in MBR\n");
             return 0;
         }
         // check partition type
+        uart_puts("Checking partition type...\n");
         if (mbr[0x1C2] != 0xE /*FAT16 LBA*/ && mbr[0x1C2] != 0xC /*FAT32 LBA*/)
         {
             uart_puts("ERROR: Wrong partition type\n");
@@ -78,16 +82,20 @@ int fat_getpartition(void)
         uart_hex(*((unsigned int *)((unsigned long)fat_buf + 0x1B8)));
         uart_puts("\nFAT partition starts at: ");
         // should be this, but compiler generates bad code...
+        uart_puts("Parsing partition LBA...\n");
         partitionlba = *((unsigned int *)((unsigned long)fat_buf + 0x1C6));
         // partitionlba = mbr[0x1C6] + (mbr[0x1C7] << 8) + (mbr[0x1C8] << 16) + (mbr[0x1C9] << 24);
+        uart_puts("Partition LBA: ");
         uart_hex(partitionlba);
         uart_puts("\n");
         // read the boot record
+        uart_puts("\nReading boot record...\n");
         if (!sd_readblock(partitionlba, fat_buf, 1))
         {
             uart_puts("ERROR: Unable to read boot record\n");
             return 0;
         }
+        uart_puts("Boot record read OK\n");
         // check file system type. We don't use cluster numbers for that, but magic bytes
         if (!(bpb->fst[0] == 'F' && bpb->fst[1] == 'A' && bpb->fst[2] == 'T') &&
             !(bpb->fst2[0] == 'F' && bpb->fst2[1] == 'A' && bpb->fst2[2] == 'T'))
@@ -100,6 +108,11 @@ int fat_getpartition(void)
         uart_puts(bpb->spf16 > 0 ? "FAT16" : "FAT32");
         uart_puts("\n");
         return 1;
+    }
+    else
+    {
+        uart_puts("ERROR: Unable to read MBR\n");
+        return 0;
     }
     return 0;
 }
