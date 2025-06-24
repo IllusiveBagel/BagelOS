@@ -100,6 +100,23 @@ int fat_getpartition(void)
         uart_puts("Partition type: ");
         uart_hex(mbr[0x1C2]);
         uart_puts("\n");
+        uart_puts("Partition LBA (dec): ");
+        unsigned int val = partitionlba;
+        char buf[12];
+        int i = 10;
+        buf[11] = 0;
+        if (val == 0)
+            uart_puts("0");
+        else
+        {
+            while (val && i)
+            {
+                buf[i--] = '0' + (val % 10);
+                val /= 10;
+            }
+            uart_puts(&buf[i + 1]);
+        }
+        uart_puts("\n");
         // should be this, but compiler generates bad code...
         // partitionlba = *((unsigned int *)((unsigned long)fat_buf + 0x1C6));
         partitionlba = ((uint32_t)mbr[0x1C6]) |
