@@ -457,7 +457,7 @@ int sd_init()
     if (sd_err)
         return sd_err;
 
-    if ((r = sd_clk(25000000)))
+    if ((r = sd_clk(1000000)))
         return r;
 
     sd_cmd(CMD_CARD_SELECT, sd_rca);
