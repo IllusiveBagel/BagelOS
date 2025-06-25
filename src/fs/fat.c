@@ -3,24 +3,7 @@
 #include <stdint.h>
 
 // add memory compare, gcc has a built-in for that, clang needs implementation
-#ifdef __clang__
-int memcmp(void *s1, void *s2, int n)
-{
-    unsigned char *a = s1, *b = s2;
-    while (n-- > 0)
-    {
-        if (*a != *b)
-        {
-            return *a - *b;
-        }
-        a++;
-        b++;
-    }
-    return 0;
-}
-#else
 #define memcmp __builtin_memcmp
-#endif
 
 static unsigned int partitionlba = 0;
 
