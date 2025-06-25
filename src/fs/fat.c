@@ -2,6 +2,26 @@
 #include "uart.h"
 #include <stdint.h>
 
+// add memory compare, gcc has a built-in for that, clang needs implementation
+#ifdef __clang__
+int memcmp(void *s1, void *s2, int n)
+{
+    unsigned char *a = s1, *b = s2;
+    while (n-- > 0)
+    {
+        if (*a != *b)
+        {
+            return *a - *b;
+        }
+        a++;
+        b++;
+    }
+    return 0;
+}
+#else
+#define memcmp __builtin_memcmp
+#endif
+
 static unsigned int partitionlba = 0;
 
 // the BIOS Parameter Block (in Volume Boot Record)
@@ -171,7 +191,7 @@ void fat_listdirectory(void)
 unsigned int fat_getcluster(char *fn)
 {
     bpb_t *bpb = (bpb_t *)fat_buf;
-    fatdir_t *dir = (fatdir_t *)(&_end + 512);
+    fatdir_t *dir = (fatdir_t *)(fat_buf + 512);
     unsigned int root_sec, s;
     // find the root directory's LBA
     root_sec = ((bpb->spf16 ? bpb->spf16 : bpb->spf32) * bpb->nf) + bpb->rsc;
