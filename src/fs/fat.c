@@ -170,7 +170,7 @@ void fat_listdirectory(void)
  */
 unsigned int fat_getcluster(char *fn)
 {
-    bpb_t *bpb = (bpb_t *)&_end;
+    bpb_t *bpb = (bpb_t *)fat_buf;
     fatdir_t *dir = (fatdir_t *)(&_end + 512);
     unsigned int root_sec, s;
     // find the root directory's LBA
@@ -219,9 +219,9 @@ unsigned int fat_getcluster(char *fn)
 char *fat_readfile(unsigned int cluster)
 {
     // BIOS Parameter Block
-    bpb_t *bpb = (bpb_t *)&_end;
+    bpb_t *bpb = (bpb_t *)fat_buf;
     // File allocation tables. We choose between FAT16 and FAT32 dynamically
-    unsigned int *fat32 = (unsigned int *)(&_end + bpb->rsc * 512);
+    unsigned int *fat32 = (unsigned int *)(fat_buf + bpb->rsc * 512);
     unsigned short *fat16 = (unsigned short *)fat32;
     // Data pointers
     unsigned int data_sec, s;
@@ -251,9 +251,9 @@ char *fat_readfile(unsigned int cluster)
     uart_hex(data_sec);
     uart_puts("\n");
     // load FAT table
-    s = sd_readblock(partitionlba + 1, (unsigned char *)&_end + 512, (bpb->spf16 ? bpb->spf16 : bpb->spf32) + bpb->rsc);
+    s = sd_readblock(partitionlba + 1, (unsigned char *)fat_buf + 512, (bpb->spf16 ? bpb->spf16 : bpb->spf32) + bpb->rsc);
     // end of FAT in memory
-    data = ptr = &_end + 512 + s;
+    data = ptr = fat_buf + 512 + s;
     // iterate on cluster chain
     // (Yep, MS is full of lies. FAT32 is actually FAT28 only, no mistake, the upper 4 bits must be zero)
     while (cluster > 1 && cluster < (bpb->spf16 > 0 ? 0xFFF8 : 0x0FFFFFF8))
