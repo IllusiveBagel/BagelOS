@@ -1,9 +1,20 @@
 #include "sd.h"
 #include "uart.h"
 #include <stdint.h>
+#include <stddef.h>
 
-// add memory compare, gcc has a built-in for that, clang needs implementation
-#define memcmp __builtin_memcmp
+int memcmp(const void *s1, const void *s2, size_t n)
+{
+    const unsigned char *a = s1, *b = s2;
+    while (n--)
+    {
+        if (*a != *b)
+            return *a - *b;
+        a++;
+        b++;
+    }
+    return 0;
+}
 
 static unsigned int partitionlba = 0;
 
